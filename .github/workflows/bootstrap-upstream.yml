@@ -1,0 +1,127 @@
+name: Bootstrap OpenCode Mobile
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore: bootstrap OpenCode Mobile from upstream') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Import upstream OpenCode Mobile
+        run: |
+          set -e
+          tmp="$(mktemp -d)"
+          git clone --depth 1 https://github.com/alvarolorentedev/opencode-mobile.git "$tmp/upstream"
+          shopt -s dotglob
+          cp -a "$tmp/upstream"/. .
+          rm -rf .git
+          git init
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git checkout -b main
+
+      - name: Add GitHub Codespaces configuration
+        run: |
+          mkdir -p .devcontainer
+          cat > .devcontainer/devcontainer.json <<'EOF'
+          {
+            "name": "OpenCode Mobile GitHub",
+            "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+            "forwardPorts": [4096],
+            "portsAttributes": {
+              "4096": {
+                "label": "OpenCode Server",
+                "protocol": "http",
+                "visibility": "private"
+              }
+            },
+            "postCreateCommand": "bash .devcontainer/setup-opencode.sh",
+            "remoteEnv": {
+              "OPENCODE_HOST": "0.0.0.0",
+              "OPENCODE_PORT": "4096"
+            }
+          }
+          EOF
+
+          cat > .devcontainer/setup-opencode.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          curl -fsSL https://opencode.ai/install | bash
+          echo 'OpenCode installation complete.'
+          echo 'Start the server with: opencode serve --hostname 0.0.0.0 --port 4096'
+          EOF
+          chmod +x .devcontainer/setup-opencode.sh
+
+      - name: Add Codespaces server helper
+        run: |
+          mkdir -p scripts
+          cat > scripts/start-opencode-server.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          PORT="${OPENCODE_PORT:-4096}"
+          HOST="${OPENCODE_HOST:-0.0.0.0}"
+          exec opencode serve --hostname "$HOST" --port "$PORT"
+          EOF
+          chmod +x scripts/start-opencode-server.sh
+
+      - name: Add project documentation
+        run: |
+          cat > GITHUB-CODESPACES.md <<'EOF'
+          # استفاده از OpenCode Mobile با GitHub Codespaces
+
+          این نسخه برای اجرای OpenCode Server داخل GitHub Codespaces آماده شده است.
+
+          ## راه‌اندازی
+
+          1. از GitHub وارد `Code > Codespaces > Create codespace on main` شوید.
+          2. بعد از ساخت Codespace، ترمینال را باز کنید.
+          3. اجرا کنید:
+
+          ```bash
+          ./scripts/start-opencode-server.sh
+          ```
+
+          4. پورت `4096` در تب **Ports** قابل مشاهده است.
+          5. روی پورت 4096 گزینه **Open in Browser** را بزنید و URL ایجادشده را بردارید.
+          6. همان URL را در OpenCode Mobile به عنوان Server URL وارد کنید.
+
+          ## نکته امنیتی
+
+          پورت Codespace روی حالت `private` تنظیم شده است. URL را عمومی نکنید و توکن‌ها یا کلیدهای API را داخل Git commit نکنید.
+
+          ## معماری
+
+          ```text
+          Android / iOS
+                |
+                | HTTPS
+                v
+          GitHub Codespaces
+                |
+                v
+          OpenCode Server :4096
+                |
+                v
+          Repository داخل Codespace
+          ```
+
+          GitHub Actions برای jobهای یک‌باره مانند test/build/deploy مناسب است؛ برای session تعاملی OpenCode از Codespace استفاده کنید.
+          EOF
+
+      - name: Commit imported source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: bootstrap OpenCode Mobile from upstream"
+          git push --force origin main
