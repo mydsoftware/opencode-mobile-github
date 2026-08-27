@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# اجرای مستقیم با bash به chmod اجرایی وابسته نیست.
 export PATH="$HOME/.opencode/bin:$HOME/.local/bin:$PATH"
 
 PORT="${OPENCODE_PORT:-4096}"
@@ -11,4 +12,5 @@ if ! command -v opencode >/dev/null 2>&1; then
   exit 1
 fi
 
+echo "Starting OpenCode Server on ${HOST}:${PORT}..."
 exec opencode serve --hostname "$HOST" --port "$PORT"
