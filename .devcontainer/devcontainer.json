@@ -9,7 +9,7 @@
       "visibility": "private"
     }
   },
-  "postCreateCommand": "bash .devcontainer/setup-opencode.sh",
+  "postCreateCommand": "bash .devcontainer/setup-opencode.sh && bash scripts/bootstrap-mobile.sh",
   "remoteEnv": {
     "OPENCODE_HOST": "0.0.0.0",
     "OPENCODE_PORT": "4096"
