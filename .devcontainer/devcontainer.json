@@ -1,0 +1,17 @@
+{
+  "name": "OpenCode Mobile GitHub",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "forwardPorts": [4096],
+  "portsAttributes": {
+    "4096": {
+      "label": "OpenCode Server",
+      "protocol": "http",
+      "visibility": "private"
+    }
+  },
+  "postCreateCommand": "bash .devcontainer/setup-opencode.sh",
+  "remoteEnv": {
+    "OPENCODE_HOST": "0.0.0.0",
+    "OPENCODE_PORT": "4096"
+  }
+}
